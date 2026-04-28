@@ -1,26 +1,79 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import { Search, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useCallback, useEffect } from "react"
+import { Search, Shield, Edit, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Role, RoleListRequest, roleListApi } from "@/api/roles"
-import { RoleList } from "@/components/admin/sys/roles/list"
+import {
+  Role,
+  RoleFromRequest,
+  roleListApi,
+  roleCreateApi,
+  roleUpdateApi,
+  roleDeleteApi,
+  roleDetailApi,
+  roleAssociateMenusApi,
+} from "@/api/roles"
+import { RoleForm } from "@/components/forms/role-form"
+import { RoleAuthorizeDialog } from "@/components/admin/sys/roles/authorize"
+import { CrudPage } from "@/components/crud/crud-page"
+import { CrudSearchForm } from "@/components/crud/crud-search-form"
+import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
+import { CrudDeleteDialog } from "@/components/crud/crud-delete-dialog"
+import { useCrud } from "@/hooks/use-crud"
+import { Button } from "@/components/ui/button"
 
-const RoleListPage = () => {
+export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([])
-  const [total, setTotal] = useState<number>(0)
-  const [request, setRequest] = useState<RoleListRequest>({
+  const [total, setTotal] = useState(0)
+  
+  const [request, setRequest] = useState({
     page: 1,
-    size: 5,
-    currentPage: 1,
-    id: undefined,
+    size: 8,
+    id: undefined as number | undefined,
   })
 
+  const {
+    isEdit,
+    currentItem,
+    isLoading,
+    isFormOpen,
+    isDeleteOpen,
+    openAdd,
+    openEdit,
+    openDelete,
+    closeAll,
+    handleSubmit,
+    handleDelete,
+  } = useCrud<Role, RoleFromRequest>({
+    entityName: "角色",
+    createApi: roleCreateApi,
+    updateApi: (data) => roleUpdateApi(data),
+    deleteApi: roleDeleteApi,
+    onSuccess: () => fetchRoles(),
+  })
+
+  const [formData, setFormData] = useState<RoleFromRequest>({
+    id: 0,
+    name: "",
+    sort: 0,
+    status: true,
+    remark: "",
+    menus: [],
+  })
+
+  // 授权弹窗状态
+  const [isAuthorizeOpen, setIsAuthorizeOpen] = useState(false)
+  const [authorizeRole, setAuthorizeRole] = useState<Role | null>(null)
+
   const fetchRoles = useCallback(() => {
-    roleListApi(request).then((response) => {
-      setRoles(response.list)
-      setTotal(response.total)
+    roleListApi({
+      page: request.page,
+      size: request.size,
+      currentPage: request.page,
+      id: request.id,
+    }).then((resp) => {
+      setRoles(resp.list)
+      setTotal(resp.total)
     })
   }, [request])
 
@@ -28,51 +81,209 @@ const RoleListPage = () => {
     fetchRoles()
   }, [fetchRoles])
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="搜索角色ID"
-            value={request.id?.toString() || ""}
-            onChange={(e) => {
-              const value = e.target.value
-              setRequest({
-                ...request,
-                id: value ? Number(value) : undefined,
-              })
-            }}
-            className="pl-10"
-          />
-          {request.id && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setRequest({ ...request, id: undefined })}
-              className="absolute top-1/2 right-1 -translate-y-1/2"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+  useEffect(() => {
+    if (isEdit && currentItem?.id) {
+      roleDetailApi(currentItem.id).then(setFormData)
+    } else {
+      setFormData({
+        id: 0,
+        name: "",
+        sort: 0,
+        status: true,
+        remark: "",
+        menus: [],
+      })
+    }
+  }, [isEdit, currentItem])
 
-      <RoleList
-        roles={roles}
+  const handleSearch = (data: Record<string, string>) => {
+    setRequest({
+      page: 1,
+      size: request.size,
+      id: data.id ? Number(data.id) : undefined,
+    })
+  }
+
+  const handleReset = () => {
+    setRequest({
+      page: 1,
+      size: request.size,
+      id: undefined,
+    })
+  }
+
+  // 打开授权弹窗
+  const openAuthorize = (role: Role) => {
+    setAuthorizeRole(role)
+    setIsAuthorizeOpen(true)
+  }
+
+  // 关闭授权弹窗
+  const closeAuthorize = () => {
+    setIsAuthorizeOpen(false)
+    setAuthorizeRole(null)
+  }
+
+  // 处理授权
+  const handleAuthorize = async (roleId: number, menuIds: number[]) => {
+    try {
+      await roleAssociateMenusApi(roleId, menuIds)
+      closeAuthorize()
+      fetchRoles()
+    } catch (error) {
+      console.error("授权失败", error)
+    }
+  }
+
+  return (
+    <>
+      <CrudPage<Role>
+        title="角色管理"
+        entityName="角色"
+        searchForm={({ onSearch, onReset }) => (
+          <CrudSearchForm
+            onSearch={(data) => {
+              handleSearch(data)
+              onSearch(data)
+            }}
+            onReset={() => {
+              handleReset()
+              onReset()
+            }}
+          >
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                name="id"
+                placeholder="搜索角色ID"
+                className="pl-10"
+              />
+            </div>
+          </CrudSearchForm>
+        )}
+        columns={[
+          {
+            key: "id",
+            header: "ID",
+            cellClassName: "w-16 font-medium",
+            cell: (row) => row.id,
+          },
+          {
+            key: "name",
+            header: "角色名称",
+            cell: (row) => (
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">{row.name}</span>
+              </div>
+            ),
+          },
+          {
+            key: "sort",
+            header: "排序",
+            cell: (row) => row.sort,
+          },
+          {
+            key: "remark",
+            header: "备注",
+            cell: (row) => row.remark || "-",
+          },
+          {
+            key: "status",
+            header: "状态",
+            cell: (row) => (row.status ? "正常" : "禁用"),
+          },
+        ]}
+        dataSource={roles}
+        loading={false}
         pagination={{
-          page: request.currentPage,
+          current: request.page,
           pageSize: request.size,
           total,
-          onPageChange: (page) =>
-            setRequest({ ...request, currentPage: page, page: page }),
+          onChange: (page) =>
+            setRequest(prev => ({ ...prev, page })),
         }}
-        onRefresh={fetchRoles}
+        onAdd={openAdd}
+        onEdit={openEdit}
+        onDelete={openDelete}
+        renderActions={(row) => (
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation()
+                openAuthorize(row)
+              }}
+              title="授权"
+            >
+              <Shield className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation()
+                openEdit(row)
+              }}
+              title="编辑"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                openDelete(row)
+              }}
+              title="删除"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       />
-    </div>
+
+      <CrudFormDialog
+        open={isFormOpen}
+        isEdit={!!isEdit}
+        entityName="角色"
+        onClose={closeAll}
+        onSubmit={(data) => handleSubmit(data as RoleFromRequest)}
+        loading={isLoading}
+      >
+        {({ onSubmit }) => (
+          <form
+            id="crud-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              onSubmit(formData)
+            }}
+          >
+            <RoleForm formData={formData} onChange={setFormData} />
+          </form>
+        )}
+      </CrudFormDialog>
+
+      <CrudDeleteDialog
+        open={isDeleteOpen}
+        onClose={closeAll}
+        onConfirm={() => handleDelete()}
+        title="删除角色"
+        itemName={currentItem?.name || ""}
+        loading={isLoading}
+      />
+
+      {/* 授权弹窗 */}
+      <RoleAuthorizeDialog
+        open={isAuthorizeOpen}
+        onOpenChange={closeAuthorize}
+        role={authorizeRole}
+        onAuthorize={handleAuthorize}
+        isLoading={isLoading}
+      />
+    </>
   )
 }
-
-export default RoleListPage

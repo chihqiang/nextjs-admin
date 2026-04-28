@@ -24,6 +24,7 @@ export function AccountForm({ formData, onChange }: AccountFormProps) {
       )
     })
   }, [])
+
   return (
     <div className="space-y-4 py-4">
       <div className="space-y-2">

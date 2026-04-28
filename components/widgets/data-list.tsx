@@ -345,7 +345,7 @@ export function DataList<T>({
 // 支持：标题、副标题、状态、元数据、操作按钮
 // 可自定义图标
 // -----------------------------------------------------------------------------
-interface RenderCardProps<T> {
+export interface RenderCardProps<T> {
   entity: T
   title: string
   subtitle?: string | React.ReactNode
@@ -355,8 +355,8 @@ interface RenderCardProps<T> {
     label: string
   }
   meta?: React.ReactNode
-  onEdit: (entity: T) => void
-  onDelete: (entity: T) => void
+  onEdit?: (entity: T) => void
+  onDelete?: (entity: T) => void
   icon?: React.ReactNode
 }
 // -----------------------------------------------------------------------------
@@ -392,17 +392,21 @@ export function RenderCard<T>({
           {meta}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(entity)}>
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onDelete(entity)}
-            className="text-red-500 hover:bg-red-50 hover:text-red-700"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {onEdit && (
+            <Button variant="ghost" size="icon" onClick={() => onEdit(entity)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onDelete(entity)}
+              className="text-red-500 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

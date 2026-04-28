@@ -12,38 +12,47 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { IconSelector } from "@/components/widgets/ico"
-import { apiMethodMap, Menu, menuTypeMap } from "@/api/menu"
+import { Menu, menuTypeMap, apiMethodMap } from "@/api/menu"
+import { useEffect, useState } from "react"
+import request from "@/lib/request"
 
 interface MenuFormProps {
   formData: Menu
   onChange: (data: Menu) => void
-  menus: Menu[]
 }
 
-export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
-  const parentMenus = menus.filter((menu) => menu.menu_type === 1)
+export function MenuForm({ formData, onChange }: MenuFormProps) {
+  const [menus, setMenus] = useState<Menu[]>([])
 
+  useEffect(() => {
+    request.get<Menu[]>("/api/v1/sys/menu/all").then(setMenus)
+  }, [])
+
+  const parentMenus = menus.filter((menu) => menu.menu_type === 1)
   const menuTypeVal = formData.menu_type ?? 1
   const pidVal = formData.pid?.toString() || "0"
   const apiMethodVal = formData.api_method ?? ""
+
   const getParentLabel = () => {
     if (pidVal === "0") return "根菜单"
     const found = parentMenus.find((m) => m.id.toString() === pidVal)
     return found?.name || "根菜单"
   }
+
   return (
     <div className="space-y-4 py-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">菜单名称</Label>
           <Input
+            id="name"
             value={formData.name}
             onChange={(e) => onChange({ ...formData, name: e.target.value })}
             placeholder="请输入菜单名称"
+            suppressHydrationWarning
           />
         </div>
 
-        {/* 菜单类型 */}
         <div className="space-y-2">
           <Label>菜单类型</Label>
           <Select
@@ -97,6 +106,7 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
             onChange={(e) =>
               onChange({ ...formData, sort: parseInt(e.target.value) || 0 })
             }
+            suppressHydrationWarning
           />
         </div>
       </div>
@@ -107,6 +117,8 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
           <Input
             value={formData.path}
             onChange={(e) => onChange({ ...formData, path: e.target.value })}
+            placeholder="请输入路由地址"
+            suppressHydrationWarning
           />
         </div>
         <div className="space-y-2">
@@ -116,6 +128,8 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
             onChange={(e) =>
               onChange({ ...formData, component: e.target.value })
             }
+            placeholder="请输入组件路径"
+            suppressHydrationWarning
           />
         </div>
       </div>
@@ -129,7 +143,6 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
           />
         </div>
 
-        {/* 请求方式 */}
         <div className="space-y-2">
           <Label>请求方式</Label>
           <Select
@@ -157,6 +170,8 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
         <Input
           value={formData.api_url}
           onChange={(e) => onChange({ ...formData, api_url: e.target.value })}
+          placeholder="请输入接口地址"
+          suppressHydrationWarning
         />
       </div>
 
@@ -166,6 +181,7 @@ export function MenuForm({ formData, onChange, menus }: MenuFormProps) {
           value={formData.remark}
           onChange={(e) => onChange({ ...formData, remark: e.target.value })}
           rows={3}
+          suppressHydrationWarning
         />
       </div>
 

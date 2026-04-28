@@ -4,12 +4,11 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { RoleFromRequest, Menu } from "@/api/roles"
+import { RoleFromRequest } from "@/api/roles"
 
 interface RoleFormProps {
   formData: RoleFromRequest
   onChange: (data: RoleFromRequest) => void
-  menus: Menu[]
 }
 
 export function RoleForm({ formData, onChange }: RoleFormProps) {

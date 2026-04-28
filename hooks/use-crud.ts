@@ -6,58 +6,67 @@ import { toast } from "sonner"
 // ==================== 类型定义 ====================
 
 /**
+ * 弹窗模式
+ */
+type DialogMode = "none" | "add" | "edit" | "delete"
+
+/**
  * CRUD 操作配置项
  * @template T 实体类型
+ * @template FormData 表单数据类型（可选，默认等于 T）
  */
-export interface CrudOptions<T> {
+export interface CrudOptions<T, FormData = T> {
+  /** 实体名称（用于提示语，如"账号"、"角色"） */
+  entityName?: string
   /** 新增 API */
-  createApi: (data: T) => Promise<unknown>
+  createApi: (data: FormData) => Promise<unknown>
   /** 更新 API */
-  updateApi: (data: T & { id: number }) => Promise<unknown>
+  updateApi: (data: FormData & { id: number }) => Promise<unknown>
   /** 删除 API */
   deleteApi: (id: number) => Promise<unknown>
-  /** 操作成功后的回调 */
+  /** 操作成功后的回调（如刷新列表） */
   onSuccess?: () => void
-  /** 新增成功提示语 */
+  /** 自定义新增成功提示语 */
   createSuccessMessage?: string
-  /** 更新成功提示语 */
+  /** 自定义更新成功提示语 */
   updateSuccessMessage?: string
-  /** 删除成功提示语 */
+  /** 自定义删除成功提示语 */
   deleteSuccessMessage?: string
 }
 
 /**
- * useCrudDialog Hook 返回值
+ * useCrud Hook 返回值
  * @template T 实体类型
+ * @template FormData 表单数据类型
  */
-export interface CrudDialogReturn<T> {
+export interface CrudReturn<T, FormData = T> {
   // ==================== 状态 ====================
-  /** 新增弹窗是否打开 */
-  isAddDialogOpen: boolean
-  /** 编辑弹窗是否打开 */
-  isEditDialogOpen: boolean
-  /** 删除确认弹窗是否打开 */
-  isDeleteDialogOpen: boolean
+  /** 是否为编辑模式 */
+  isEdit: boolean
   /** 当前选中的实体（用于编辑/删除） */
   currentItem: T | null
   /** 是否正在加载 */
   isLoading: boolean
 
+  // ==================== 弹窗状态 ====================
+  /** 表单弹窗是否打开（新增或编辑） */
+  isFormOpen: boolean
+  /** 删除确认弹窗是否打开 */
+  isDeleteOpen: boolean
+
   // ==================== 弹窗控制 ====================
   /** 打开新增弹窗 */
-  openAddDialog: () => void
-  /** 关闭所有弹窗并清空当前选中项 */
-  closeAllDialogs: () => void
+  openAdd: () => void
+  /** 打开编辑弹窗 */
+  openEdit: (item: T) => void
+  /** 打开删除确认弹窗 */
+  openDelete: (item: T) => void
+  /** 关闭所有弹窗 */
+  closeAll: () => void
 
   // ==================== 业务方法 ====================
-  /** 打开编辑弹窗 */
-  openEditDialog: (item: T) => void
-  /** 打开删除确认弹窗 */
-  openDeleteDialog: (item: T) => void
-  /** 处理新增 */
-  handleCreate: (data: T) => Promise<void>
-  /** 处理更新 */
-  handleUpdate: (data: T) => Promise<void>
+  /** 处理新增/更新提交 */
+  handleSubmit: (data: FormData) => Promise<void>
   /** 处理删除 */
   handleDelete: () => Promise<void>
 }
@@ -65,127 +74,117 @@ export interface CrudDialogReturn<T> {
 // ==================== Hook 实现 ====================
 
 /**
- * CRUD 弹窗状态管理 Hook
+ * CRUD 通用 Hook
  *
- * 封装常见的增删改查弹窗逻辑，避免在每个列表组件中重复编写。
+ * 封装常见的增删改查逻辑，避免在每个列表组件中重复编写。
+ * UI 组件请使用 components/crud/ 目录下的通用组件。
  *
  * @template T 实体类型（如 Account、Role、Menu）
- * @param options CRUD 操作配置（API 方法和回调）
- * @returns CRUD 弹窗状态和方法
+ * @template FormData 表单数据类型（可选，默认等于 T）
+ * @param options CRUD 操作配置
+ * @returns CRUD 状态和方法
  *
  * @example
  * ```tsx
- * const {
- *   isAddDialogOpen,
- *   currentItem,
- *   isLoading,
- *   openAddDialog,
- *   openEditDialog,
- *   handleCreate,
- *   handleUpdate,
- *   handleDelete,
- * } = useCrudDialog({
+ * const { openAdd, openEdit, openDelete, handleSubmit, handleDelete, isEdit, currentItem, isLoading } = useCrud({
+ *   entityName: "账号",
  *   createApi: accountCreateApi,
  *   updateApi: accountUpdateApi,
  *   deleteApi: accountDeleteApi,
  *   onSuccess: fetchData,
- *   createSuccessMessage: "账号创建成功",
  * })
+ *
+ * return (
+ *   <>
+ *     <Button onClick={openAdd}>新增</Button>
+ *     <Table items={items} onEdit={openEdit} onDelete={openDelete} />
+ *     <CrudFormDialog
+ *       open={true}
+ *       isEdit={isEdit}
+ *       title={{ add: "新增账号", edit: "编辑账号" }}
+ *       onClose={closeAll}
+ *       onSubmit={handleSubmit}
+ *       loading={isLoading}
+ *     >
+ *       {(formProps) => <AccountForm {...formProps} />}
+ *     </CrudFormDialog>
+ *     <CrudDeleteDialog
+ *       open={true}
+ *       itemName={currentItem?.name}
+ *       onClose={closeAll}
+ *       onConfirm={handleDelete}
+ *       loading={isLoading}
+ *     />
+ *   </>
+ * )
  * ```
  */
-export function useCrudDialog<T>(options: CrudOptions<T>): CrudDialogReturn<T> {
+export function useCrud<T, FormData = T>(
+  options: CrudOptions<T, FormData>
+): CrudReturn<T, FormData> {
   const {
+    entityName,
     createApi,
     updateApi,
     deleteApi,
     onSuccess,
-    createSuccessMessage = "操作成功",
-    updateSuccessMessage = "操作成功",
-    deleteSuccessMessage = "操作成功",
+    createSuccessMessage,
+    updateSuccessMessage,
+    deleteSuccessMessage,
   } = options
 
   // ==================== 状态 ====================
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<DialogMode>("none")
+  const [isEdit, setIsEdit] = useState(false)
   const [currentItem, setCurrentItem] = useState<T | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // 派生状态
+  const isFormOpen = dialogMode === "add" || dialogMode === "edit"
+  const isDeleteOpen = dialogMode === "delete"
+
   // ==================== 弹窗控制 ====================
 
-  /**
-   * 打开新增弹窗
-   */
-  const openAddDialog = useCallback(() => {
+  const openAdd = useCallback(() => {
+    setIsEdit(false)
     setCurrentItem(null)
-    setIsAddDialogOpen(true)
+    setDialogMode("add")
   }, [])
 
-  /**
-   * 关闭所有弹窗并清空当前选中项
-   */
-  const closeAllDialogs = useCallback(() => {
-    setIsAddDialogOpen(false)
-    setIsEditDialogOpen(false)
-    setIsDeleteDialogOpen(false)
+  const openEdit = useCallback((item: T) => {
+    setIsEdit(true)
+    setCurrentItem(item)
+    setDialogMode("edit")
+  }, [])
+
+  const openDelete = useCallback((item: T) => {
+    setCurrentItem(item)
+    setDialogMode("delete")
+  }, [])
+
+  const closeAll = useCallback(() => {
+    setIsEdit(false)
     setCurrentItem(null)
-  }, [])
-
-  /**
-   * 打开编辑弹窗
-   */
-  const openEditDialog = useCallback((item: T) => {
-    setCurrentItem(item)
-    setIsEditDialogOpen(true)
-  }, [])
-
-  /**
-   * 打开删除确认弹窗
-   */
-  const openDeleteDialog = useCallback((item: T) => {
-    setCurrentItem(item)
-    setIsDeleteDialogOpen(true)
+    setDialogMode("none")
   }, [])
 
   // ==================== 业务方法 ====================
 
-  /**
-   * 处理新增
-   */
-  const handleCreate = useCallback(
-    async (data: T) => {
+  const handleSubmit = useCallback(
+    async (data: FormData) => {
       try {
         setIsLoading(true)
-        await createApi(data)
-        setIsAddDialogOpen(false)
-        toast.success(createSuccessMessage)
-        onSuccess?.()
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : "操作失败"
-        toast.error(msg)
-        throw error // 让调用方可以处理错误
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [createApi, createSuccessMessage, onSuccess]
-  )
-
-  /**
-   * 处理更新
-   */
-  const handleUpdate = useCallback(
-    async (data: T) => {
-      if (!currentItem) return
-      try {
-        setIsLoading(true)
-        await updateApi({
-          ...data,
-          id: (currentItem as unknown as { id: number }).id,
-        } as T & { id: number })
-        setIsEditDialogOpen(false)
-        setCurrentItem(null)
-        toast.success(updateSuccessMessage)
+        if (isEdit) {
+          await updateApi({
+            ...data,
+            id: (currentItem as unknown as { id: number }).id,
+          } as FormData & { id: number })
+          toast.success(updateSuccessMessage || `${entityName}更新成功`)
+        } else {
+          await createApi(data)
+          toast.success(createSuccessMessage || `${entityName}创建成功`)
+        }
+        closeAll()
         onSuccess?.()
       } catch (error) {
         const msg = error instanceof Error ? error.message : "操作失败"
@@ -195,20 +194,26 @@ export function useCrudDialog<T>(options: CrudOptions<T>): CrudDialogReturn<T> {
         setIsLoading(false)
       }
     },
-    [currentItem, updateApi, updateSuccessMessage, onSuccess]
+    [
+      isEdit,
+      currentItem,
+      createApi,
+      updateApi,
+      closeAll,
+      onSuccess,
+      entityName,
+      createSuccessMessage,
+      updateSuccessMessage,
+    ]
   )
 
-  /**
-   * 处理删除
-   */
   const handleDelete = useCallback(async () => {
     if (!currentItem) return
     try {
       setIsLoading(true)
       await deleteApi((currentItem as unknown as { id: number }).id)
-      setIsDeleteDialogOpen(false)
-      setCurrentItem(null)
-      toast.success(deleteSuccessMessage)
+      toast.success(deleteSuccessMessage || `${entityName}删除成功`)
+      closeAll()
       onSuccess?.()
     } catch (error) {
       const msg = error instanceof Error ? error.message : "操作失败"
@@ -217,25 +222,59 @@ export function useCrudDialog<T>(options: CrudOptions<T>): CrudDialogReturn<T> {
     } finally {
       setIsLoading(false)
     }
-  }, [currentItem, deleteApi, deleteSuccessMessage, onSuccess])
+  }, [currentItem, deleteApi, closeAll, onSuccess, entityName, deleteSuccessMessage])
 
   return {
-    // 状态
-    isAddDialogOpen,
-    isEditDialogOpen,
-    isDeleteDialogOpen,
+    isEdit,
     currentItem,
     isLoading,
+    isFormOpen,
+    isDeleteOpen,
+    openAdd,
+    openEdit,
+    openDelete,
+    closeAll,
+    handleSubmit,
+    handleDelete,
+  }
+}
 
-    // 弹窗控制
-    openAddDialog,
-    closeAllDialogs,
+// ==================== 兼容层 ====================
 
-    // 业务方法
-    openEditDialog,
-    openDeleteDialog,
-    handleCreate,
-    handleUpdate,
+/**
+ * @deprecated 请使用 useCrud
+ * 为了兼容旧代码，保留此 Hook
+ * 旧接口返回：isAddDialogOpen, isEditDialogOpen, isDeleteDialogOpen, openAddDialog, closeAllDialogs, etc.
+ */
+export function useCrudDialog<T, FormData = T>(
+  options: CrudOptions<T, FormData>
+) {
+  const {
+    isEdit,
+    currentItem,
+    isLoading,
+    isFormOpen,
+    isDeleteOpen,
+    openAdd,
+    openEdit,
+    openDelete,
+    closeAll,
+    handleSubmit,
+    handleDelete,
+  } = useCrud<T, FormData>(options)
+
+  return {
+    isAddDialogOpen: !isEdit && isFormOpen,
+    isEditDialogOpen: isEdit && isFormOpen,
+    isDeleteDialogOpen: isDeleteOpen,
+    currentItem,
+    isLoading,
+    openAddDialog: openAdd,
+    closeAllDialogs: closeAll,
+    openEditDialog: openEdit,
+    openDeleteDialog: openDelete,
+    handleCreate: handleSubmit,
+    handleUpdate: handleSubmit,
     handleDelete,
   }
 }
