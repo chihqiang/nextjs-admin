@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Search } from "lucide-react"
+import { Search, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import {
   Account,
   AccountCreateUpdate,
@@ -78,15 +79,6 @@ export default function AccountPage() {
   useEffect(() => {
     if (isEdit && currentItem?.id) {
       accountDetailApi(currentItem.id).then(setFormData)
-    } else {
-      setFormData({
-        id: 0,
-        name: "",
-        email: "",
-        password: "",
-        roles: [],
-        status: true,
-      })
     }
   }, [isEdit, currentItem])
 
@@ -108,11 +100,25 @@ export default function AccountPage() {
     })
   }
 
+  // 批量删除处理
+  const handleBatchDelete = async (selectedRows: Account[]) => {
+    const ids = selectedRows.map((row) => row.id)
+    if (!confirm(`确定要删除选中的 ${ids.length} 个账号吗？`)) return
+
+    try {
+      await Promise.all(ids.map((id) => accountDeleteApi(id)))
+      fetchAccounts()
+    } catch (error) {
+      console.error("批量删除失败", error)
+    }
+  }
+
   return (
     <>
       <CrudPage<Account>
         title="账号管理"
         entityName="账号"
+        selectable
         searchForm={({ onSearch, onReset }) => (
           <CrudSearchForm
             onSearch={(data) => {
@@ -127,7 +133,6 @@ export default function AccountPage() {
             <div className="relative flex-1">
               <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input name="id" placeholder="搜索账号ID" className="pl-10" />
-              {/* 清除按钮通过 CrudSearchForm 的重置按钮实现 */}
             </div>
           </CrudSearchForm>
         )}
@@ -170,6 +175,7 @@ export default function AccountPage() {
         onAdd={openAdd}
         onEdit={openEdit}
         onDelete={openDelete}
+        onBatchDelete={handleBatchDelete}
       />
 
       <CrudFormDialog

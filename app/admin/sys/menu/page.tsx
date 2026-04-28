@@ -82,22 +82,6 @@ export default function MenuPage() {
   useEffect(() => {
     if (isEdit && currentItem?.id) {
       menuDetailApi(currentItem.id).then(setFormData)
-    } else {
-      setFormData({
-        id: 0,
-        pid: 0,
-        menu_type: 1,
-        name: "",
-        path: "",
-        component: "",
-        icon: "",
-        sort: 0,
-        api_url: "",
-        api_method: "",
-        visible: true,
-        status: true,
-        remark: "",
-      })
     }
   }, [isEdit, currentItem])
 

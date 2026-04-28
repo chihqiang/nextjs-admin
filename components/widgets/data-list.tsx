@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Edit, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -87,6 +88,18 @@ interface DataListProps<T> {
   emptyText?: string
   /** 外层自定义类名 */
   className?: string
+  /** 是否可选择（显示复选框） */
+  selectable?: boolean
+  /** 选中的行 key 集合 */
+  selectedRowKeys?: Set<string>
+  /** 是否全选 */
+  isAllSelected?: boolean
+  /** 是否部分选中 */
+  isPartiallySelected?: boolean
+  /** 选中行变化回调 */
+  onSelectRow?: (key: string, checked: boolean) => void
+  /** 全选/取消全选回调 */
+  onSelectAll?: (checked: boolean) => void
 }
 
 // -----------------------------------------------------------------------------
@@ -244,9 +257,18 @@ export function DataList<T>({
   pagination,
   emptyText = "暂无数据",
   className,
+  selectable = false,
+  selectedRowKeys = new Set<string>(),
+  isAllSelected = false,
+  isPartiallySelected = false,
+  onSelectRow,
+  onSelectAll,
 }: DataListProps<T>) {
   const isMobile = useIsMobile()
   const isEmpty = !loading && data.length === 0
+
+  const checkboxColSpan = selectable ? 1 : 0
+  const totalColumns = columns.length + checkboxColSpan
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -257,6 +279,17 @@ export function DataList<T>({
             {/* 表头 */}
             <TableHeader>
               <TableRow>
+                {selectable && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      {...(isPartiallySelected
+                        ? { "data-state": "indeterminate" as const }
+                        : {})}
+                      onCheckedChange={(checked) => onSelectAll?.(!!checked)}
+                    />
+                  </TableHead>
+                )}
                 {columns.map((col) => (
                   <TableHead key={col.key} className={col.headerClassName}>
                     {col.header}
@@ -271,7 +304,7 @@ export function DataList<T>({
               {loading && (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={totalColumns}
                     className="h-32 text-center text-muted-foreground"
                   >
                     加载中...
@@ -283,7 +316,7 @@ export function DataList<T>({
               {!loading && isEmpty && (
                 <TableRow>
                   <TableCell
-                    colSpan={columns.length}
+                    colSpan={totalColumns}
                     className="h-32 text-center text-muted-foreground"
                   >
                     {emptyText}
@@ -294,15 +327,29 @@ export function DataList<T>({
               {/* 正常数据列表 */}
               {!loading &&
                 !isEmpty &&
-                data.map((row) => (
-                  <TableRow key={keyExtractor(row)}>
-                    {columns.map((col) => (
-                      <TableCell key={col.key} className={col.cellClassName}>
-                        {col.cell(row)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
+                data.map((row) => {
+                  const key = keyExtractor(row)
+                  const isSelected = selectedRowKeys.has(key)
+                  return (
+                    <TableRow key={key} data-selected={isSelected || undefined}>
+                      {selectable && (
+                        <TableCell>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) =>
+                              onSelectRow?.(key, !!checked)
+                            }
+                          />
+                        </TableCell>
+                      )}
+                      {columns.map((col) => (
+                        <TableCell key={col.key} className={col.cellClassName}>
+                          {col.cell(row)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )
+                })}
             </TableBody>
           </Table>
         </div>

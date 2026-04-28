@@ -83,15 +83,6 @@ export default function RolesPage() {
   useEffect(() => {
     if (isEdit && currentItem?.id) {
       roleDetailApi(currentItem.id).then(setFormData)
-    } else {
-      setFormData({
-        id: 0,
-        name: "",
-        sort: 0,
-        status: true,
-        remark: "",
-        menus: [],
-      })
     }
   }, [isEdit, currentItem])
 

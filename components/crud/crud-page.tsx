@@ -1,9 +1,10 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { CrudPageActions, CrudPageActionsProps } from "./crud-page-actions"
 import {
   DataList,
   DataListColumn,
@@ -16,12 +17,9 @@ export interface CrudPageProps<T, SearchData = Record<string, unknown>> {
   /** 页面标题 */
   title: string
   /** 实体名称（用于按钮、提示语） */
-  entityName: string
-  /** 搜索表单（可选） */
-  searchForm?: (handlers: {
-    onSearch: (data: SearchData) => void
-    onReset: () => void
-  }) => ReactNode
+  entityName?: string
+
+  // ==================== 数据相关 ====================
   /** 表格列定义（桌面端） */
   columns: DataListColumn<T>[]
   /** 表格数据 */
@@ -41,18 +39,41 @@ export interface CrudPageProps<T, SearchData = Record<string, unknown>> {
   }
   /** 获取行唯一 key */
   rowKey?: (record: T) => string
-  /** 新增回调 */
-  onAdd: () => void
+
+  // ==================== 功能配置 ====================
+  /** 是否可选择（显示复选框，支持批量操作） */
+  selectable?: boolean
+  /** 空数据提示文字 */
+  emptyText?: string
+
+  // ==================== 搜索表单 ====================
+  /** 搜索表单（可选） */
+  searchForm?: (handlers: {
+    onSearch: (data: SearchData) => void
+    onReset: () => void
+  }) => ReactNode
+
+  // ==================== 操作回调 ====================
+  /** 新增回调（可选，不传则不显示新增按钮） */
+  onAdd?: () => void
   /** 编辑回调（可选，不传则不显示编辑按钮） */
   onEdit?: (item: T) => void
   /** 删除回调（可选，不传则不显示删除按钮） */
   onDelete?: (item: T) => void
+  /** 批量删除回调 */
+  onBatchDelete?: (selectedRows: T[]) => void
+  /** 批量导出回调 */
+  onBatchExport?: (selectedRows: T[]) => void
+
+  // ==================== 自定义渲染 ====================
   /** 自定义操作列（可选，默认显示编辑/删除按钮） */
   renderActions?: (item: T) => ReactNode
   /** 移动端卡片渲染（可选，默认使用 RenderCard） */
   renderCard?: (item: T) => ReactNode
-  /** 空数据提示文字 */
-  emptyText?: string
+
+  // ==================== Actions 自定义 ====================
+  /** 自定义操作栏属性（传递给 CrudPageActions，可覆盖默认配置） */
+  actionsProps?: Partial<CrudPageActionsProps<T>>
 }
 
 // ==================== 组件实现 ====================
@@ -90,22 +111,75 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
   props: CrudPageProps<T, SearchData>
 ) {
   const {
+    // 基础配置
     title,
     entityName,
-    searchForm,
+
+    // 数据相关
     columns,
     dataSource,
     loading = false,
     pagination,
     rowKey = (record: T) =>
       String((record as unknown as Record<string, unknown>).id),
+
+    // 功能配置
+    selectable = false,
+    emptyText = "暂无数据",
+
+    // 搜索表单
+    searchForm,
+
+    // 操作回调
     onAdd,
     onEdit,
     onDelete,
+    onBatchDelete,
+    onBatchExport,
+
+    // 自定义渲染
     renderActions,
     renderCard,
-    emptyText = "暂无数据",
+
+    // Actions 自定义
+    actionsProps = {},
   } = props
+
+  // 选择状态管理
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set())
+
+  const selectedRows = useMemo(
+    () => dataSource.filter((row) => selectedRowKeys.has(rowKey(row))),
+    [dataSource, selectedRowKeys, rowKey]
+  )
+
+  const isAllSelected =
+    dataSource.length > 0 && selectedRows.length === dataSource.length
+  const isPartiallySelected =
+    selectedRows.length > 0 && selectedRows.length < dataSource.length
+
+  const handleSelectRow = useCallback((key: string, checked: boolean) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(key)
+      } else {
+        next.delete(key)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setSelectedRowKeys(new Set(dataSource.map((row) => rowKey(row))))
+      } else {
+        setSelectedRowKeys(new Set())
+      }
+    },
+    [dataSource, rowKey]
+  )
 
   // 默认卡片渲染
   const defaultRenderCard = (item: T) => (
@@ -115,7 +189,7 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
       status={{
         value: "active",
         variant: "default",
-        label: entityName,
+        label: entityName || "记录",
       }}
       {...(onEdit ? { onEdit } : {})}
       {...(onDelete ? { onDelete } : {})}
@@ -180,16 +254,25 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
       }
     : undefined
 
+  // 默认 actions props（可被 actionsProps 覆盖）
+  const defaultActionsProps: Partial<CrudPageActionsProps<T>> = {
+    entityName,
+    selectedRows,
+    onAdd,
+    onBatchDelete,
+    onBatchExport,
+  }
+
+  // 合并默认 props 和用户传入的 actionsProps
+  const finalActionsProps = {
+    ...defaultActionsProps,
+    ...actionsProps,
+  } as CrudPageActionsProps<T>
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>{title}</CardTitle>
-          <Button onClick={onAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增{entityName}
-          </Button>
-        </div>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {/* 搜索表单 */}
@@ -202,6 +285,9 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
           </div>
         )}
 
+        {/* 操作栏（批量操作 + 新增按钮） */}
+        <CrudPageActions {...finalActionsProps} />
+
         {/* 数据列表（使用 DataList 组件） */}
         <DataList
           data={dataSource}
@@ -211,6 +297,12 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
           loading={loading}
           pagination={dataListPagination}
           emptyText={emptyText}
+          selectable={selectable}
+          selectedRowKeys={selectedRowKeys}
+          isAllSelected={isAllSelected}
+          isPartiallySelected={isPartiallySelected}
+          onSelectRow={handleSelectRow}
+          onSelectAll={handleSelectAll}
         />
       </CardContent>
     </Card>
