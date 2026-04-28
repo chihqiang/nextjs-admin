@@ -1,5 +1,5 @@
 "use client"
-import { useEffect } from "react"
+import { useEffect, useTransition } from "react"
 import { usePathname } from "next/navigation"
 import NProgress from "nprogress"
 import "nprogress/nprogress.css"
@@ -37,23 +37,35 @@ NProgress.configure({
 export function NProgressProvider() {
   // 获取当前路由路径
   const pathname = usePathname()
+  // 使用 useTransition 检测路由切换的 pending 状态
+  const [isPending, startTransition] = useTransition()
 
   // ==============================
-  // 监听路由变化，自动触发进度条
+  // 监听路由变化，精确控制进度条
   // ==============================
   useEffect(() => {
-    // 路由开始切换 → 启动进度条
-    NProgress.start()
+    // 当路径变化时，使用 startTransition 标记路由切换开始
+    startTransition(() => {
+      // 这个空函数用于触发 isPending 状态
+      // 实际的路由切换由 Next.js 处理
+    })
+  }, [pathname])
 
-    // 模拟加载完成延迟（让进度条动画更自然，可根据需求调整）
-    const timer = setTimeout(() => {
-      // 路由切换完成 → 结束进度条
-      NProgress.done()
-    }, 300)
-
-    // 清理定时器（防止内存泄漏）
-    return () => clearTimeout(timer)
-  }, [pathname]) // 依赖：路由变化时执行
+  // ==============================
+  // 根据 isPending 状态控制进度条
+  // ==============================
+  useEffect(() => {
+    if (isPending) {
+      // 路由切换开始 → 启动进度条
+      NProgress.start()
+    } else {
+      // 路由切换完成 → 结束进度条（使用 requestAnimationFrame 确保动画完整）
+      const raf = requestAnimationFrame(() => {
+        NProgress.done()
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [isPending])
 
   // 该组件只做逻辑处理，不需要渲染任何 DOM
   return null

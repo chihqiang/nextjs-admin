@@ -44,19 +44,21 @@ export function LayoutSidebar({ children }: { children: React.ReactNode }) {
   // 获取当前菜单树
   const menuTree = getCurrentMenuTree()
   // 初始化菜单展开状态（使用懒初始化，避免每次渲染都执行计算）
-  const [menuOpenState, setMenuOpenState] = useState<Record<string, boolean>>(() => {
-    return menuTree.reduce(
-      (acc, item) => {
-        if (item.children && item.children.length > 0) {
-          acc[item.id.toString()] = item.children.some((child) =>
-            pathname.startsWith(child.path || "")
-          )
-        }
-        return acc
-      },
-      {} as Record<string, boolean>
-    )
-  })
+  const [menuOpenState, setMenuOpenState] = useState<Record<string, boolean>>(
+    () => {
+      return menuTree.reduce(
+        (acc, item) => {
+          if (item.children && item.children.length > 0) {
+            acc[item.id.toString()] = item.children.some((child) =>
+              pathname.startsWith(child.path || "")
+            )
+          }
+          return acc
+        },
+        {} as Record<string, boolean>
+      )
+    }
+  )
   const toggleMenu = (key: string) => {
     setMenuOpenState((prev) => ({
       ...prev,
