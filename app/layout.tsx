@@ -3,6 +3,7 @@
 import { Geist_Mono, Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/components/providers/auth-provider"
 import { cn } from "@/lib/utils"
 import { Toaster } from "sonner"
 import { NProgressProvider } from "@/components/providers/nprogress-provider"
@@ -45,9 +46,11 @@ export default function RootLayout({
       )}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
-        <Toaster />
-        <NProgressProvider />
+        <AuthProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+          <Toaster />
+          <NProgressProvider />
+        </AuthProvider>
       </body>
     </html>
   )
