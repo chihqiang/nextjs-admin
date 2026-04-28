@@ -1,9 +1,8 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Search, Trash2 } from "lucide-react"
+import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import {
   Account,
   AccountCreateUpdate,
@@ -18,11 +17,14 @@ import { CrudPage } from "@/components/crud/crud-page"
 import { CrudSearchForm } from "@/components/crud/crud-search-form"
 import { CrudFormDialog } from "@/components/crud/crud-form-dialog"
 import { CrudDeleteDialog } from "@/components/crud/crud-delete-dialog"
+import { ConfirmDialog } from "@/components/widgets/confirm-dialog"
 import { useCrud } from "@/hooks/use-crud"
 
 export default function AccountPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [total, setTotal] = useState(0)
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
+  const [batchDeleteIds, setBatchDeleteIds] = useState<number[]>([])
 
   // 实际请求参数（只有这个变化才触发请求）
   const [request, setRequest] = useState({
@@ -100,13 +102,19 @@ export default function AccountPage() {
     })
   }
 
-  // 批量删除处理
-  const handleBatchDelete = async (selectedRows: Account[]) => {
+  // 批量删除处理 - 打开确认对话框
+  const handleBatchDelete = (selectedRows: Account[]) => {
     const ids = selectedRows.map((row) => row.id)
-    if (!confirm(`确定要删除选中的 ${ids.length} 个账号吗？`)) return
+    setBatchDeleteIds(ids)
+    setShowBatchDeleteConfirm(true)
+  }
 
+  // 确认批量删除
+  const confirmBatchDelete = async () => {
     try {
-      await Promise.all(ids.map((id) => accountDeleteApi(id)))
+      await Promise.all(batchDeleteIds.map((id) => accountDeleteApi(id)))
+      setShowBatchDeleteConfirm(false)
+      setBatchDeleteIds([])
       fetchAccounts()
     } catch (error) {
       console.error("批量删除失败", error)
@@ -206,6 +214,16 @@ export default function AccountPage() {
         title="删除账号"
         itemName={currentItem?.name || ""}
         loading={isLoading}
+      />
+
+      <ConfirmDialog
+        open={showBatchDeleteConfirm}
+        onClose={() => setShowBatchDeleteConfirm(false)}
+        title="批量删除账号"
+        description={`确定要删除选中的 ${batchDeleteIds.length} 个账号吗？此操作不可恢复。`}
+        confirmText="删除"
+        confirmButtonVariant="destructive"
+        onConfirm={confirmBatchDelete}
       />
     </>
   )

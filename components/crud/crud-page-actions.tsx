@@ -82,9 +82,10 @@ export function CrudPageActions<T = any>({
           variant="destructive"
           size="sm"
           onClick={() => onBatchDelete(selectedRows)}
+          disabled={!hasSelection}
         >
           <Trash2 className="mr-2 h-4 w-4" />
-          批量删除{hasSelection ? `（${selectedRows.length}）` : ""}
+          批量删除
         </Button>
       )}
 
@@ -93,9 +94,10 @@ export function CrudPageActions<T = any>({
           variant="outline"
           size="sm"
           onClick={() => onBatchExport(selectedRows)}
+          disabled={!hasSelection}
         >
           <Download className="mr-2 h-4 w-4" />
-          批量导出{hasSelection ? `（${selectedRows.length}）` : ""}
+          批量导出
         </Button>
       )}
     </div>
