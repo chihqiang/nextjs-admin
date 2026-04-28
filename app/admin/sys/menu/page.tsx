@@ -68,7 +68,6 @@ export default function MenuPage() {
     menuListApi({
       page: request.page,
       size: request.size,
-      currentPage: request.page,
       id: request.id,
     }).then((resp) => {
       setMenus(resp.list)

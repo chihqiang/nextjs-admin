@@ -69,7 +69,6 @@ export default function RolesPage() {
     roleListApi({
       page: request.page,
       size: request.size,
-      currentPage: request.page,
       id: request.id,
     }).then((resp) => {
       setRoles(resp.list)
