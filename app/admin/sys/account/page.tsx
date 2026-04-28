@@ -22,7 +22,7 @@ import { useCrud } from "@/hooks/use-crud"
 export default function AccountPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [total, setTotal] = useState(0)
-  
+
   // 实际请求参数（只有这个变化才触发请求）
   const [request, setRequest] = useState({
     page: 1,
@@ -125,12 +125,8 @@ export default function AccountPage() {
             }}
           >
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="id"
-                placeholder="搜索账号ID"
-                className="pl-10"
-              />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input name="id" placeholder="搜索账号ID" className="pl-10" />
               {/* 清除按钮通过 CrudSearchForm 的重置按钮实现 */}
             </div>
           </CrudSearchForm>
@@ -169,8 +165,7 @@ export default function AccountPage() {
           current: request.page,
           pageSize: request.size,
           total,
-          onChange: (page) =>
-            setRequest(prev => ({ ...prev, page })),
+          onChange: (page) => setRequest((prev) => ({ ...prev, page })),
         }}
         onAdd={openAdd}
         onEdit={openEdit}

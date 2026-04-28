@@ -222,7 +222,14 @@ export function useCrud<T, FormData = T>(
     } finally {
       setIsLoading(false)
     }
-  }, [currentItem, deleteApi, closeAll, onSuccess, entityName, deleteSuccessMessage])
+  }, [
+    currentItem,
+    deleteApi,
+    closeAll,
+    onSuccess,
+    entityName,
+    deleteSuccessMessage,
+  ])
 
   return {
     isEdit,

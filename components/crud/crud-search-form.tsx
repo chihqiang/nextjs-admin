@@ -47,7 +47,7 @@ export function CrudSearchForm(props: CrudSearchFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-4 flex-wrap">
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-4">
       {children}
       <div className="flex gap-2">
         <Button type="submit" disabled={loading}>

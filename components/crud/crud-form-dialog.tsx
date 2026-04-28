@@ -90,15 +90,11 @@ export function CrudFormDialog(props: CrudFormDialogProps) {
           <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         {children({ onSubmit: handleSubmit })}
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={loading}>
             取消
           </Button>
-          <Button
-            type="submit"
-            form="crud-form"
-            disabled={loading}
-          >
+          <Button type="submit" form="crud-form" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {submitText || (isEdit ? "更新" : "创建")}
           </Button>

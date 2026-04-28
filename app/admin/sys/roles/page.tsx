@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/button"
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [total, setTotal] = useState(0)
-  
+
   const [request, setRequest] = useState({
     page: 1,
     size: 8,
@@ -151,12 +151,8 @@ export default function RolesPage() {
             }}
           >
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                name="id"
-                placeholder="搜索角色ID"
-                className="pl-10"
-              />
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input name="id" placeholder="搜索角色ID" className="pl-10" />
             </div>
           </CrudSearchForm>
         )}
@@ -199,8 +195,7 @@ export default function RolesPage() {
           current: request.page,
           pageSize: request.size,
           total,
-          onChange: (page) =>
-            setRequest(prev => ({ ...prev, page })),
+          onChange: (page) => setRequest((prev) => ({ ...prev, page })),
         }}
         onAdd={openAdd}
         onEdit={openEdit}

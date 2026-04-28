@@ -97,7 +97,8 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
     dataSource,
     loading = false,
     pagination,
-    rowKey = (record: T) => String((record as unknown as Record<string, unknown>).id),
+    rowKey = (record: T) =>
+      String((record as unknown as Record<string, unknown>).id),
     onAdd,
     onEdit,
     onDelete,
@@ -174,7 +175,8 @@ export function CrudPage<T, SearchData = Record<string, unknown>>(
         page: pagination.current,
         pageSize: pagination.pageSize,
         total: pagination.total,
-        onPageChange: (page: number) => pagination.onChange(page, pagination.pageSize),
+        onPageChange: (page: number) =>
+          pagination.onChange(page, pagination.pageSize),
       }
     : undefined
 
